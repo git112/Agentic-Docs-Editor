@@ -4,20 +4,20 @@ import EditorView from './editor/EditorView'
 function App() {
   return (
     <div className="app-shell" style={{
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '2rem'
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
     }}>
       <header style={{
-        marginBottom: '2rem',
-        borderBottom: '1px solid #eee',
-        paddingBottom: '1rem'
+        padding: '1rem 2rem',
+        borderBottom: '1px solid #e2e8f0',
+        backgroundColor: '#fff'
       }}>
-        <h1 style={{ margin: 0, color: '#333' }}>AI Document Editor</h1>
+        <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#0f172a' }}>AI Document Editor</h1>
       </header>
 
-      <main>
+      <main style={{ flex: 1, overflow: 'hidden' }}>
         <EditorView />
       </main>
     </div>

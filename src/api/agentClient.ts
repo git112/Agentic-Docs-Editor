@@ -12,7 +12,7 @@ export interface ToolResult {
 }
 
 export interface PlannedAction {
-  name: 'readSelection' | 'replaceSelection' | 'convertToBullets' | 'setMargin' | 'applyFormatting';
+  name: 'readSelection' | 'replaceSelection' | 'convertToBullets' | 'convertToProperBullets' | 'setMargin' | 'applyFormatting';
   args: Record<string, unknown>;
 }
 
@@ -31,6 +31,7 @@ export interface EditorCommands {
   applyItalic?: () => void;
   applyUnderline?: () => void;
   convertToBullets?: () => void;
+  convertMultipleToBullets?: (lines: string[]) => void;
   replaceText?: (oldText: string, newText: string) => void;
 }
 
@@ -58,31 +59,60 @@ export async function runAgent(
 
     const result = await response.json();
 
+    console.log('[AgentClient] Response:', JSON.stringify(result, null, 2));
+
     if (result.plannedActions && editorCommands) {
+      console.log('[AgentClient] Executing', result.plannedActions.length, 'planned actions');
       for (const action of result.plannedActions) {
+        console.log('[AgentClient] Action:', JSON.stringify(action));
         switch (action.name) {
           case 'applyFormatting':
             const options = action.args.options as { bold?: boolean; italic?: boolean; underline?: boolean } | undefined;
-            if (options?.bold) {
+            const directBold = action.args.bold as boolean | undefined;
+            const directItalic = action.args.italic as boolean | undefined;
+            const directUnderline = action.args.underline as boolean | undefined;
+            const bold = options?.bold ?? directBold;
+            const italic = options?.italic ?? directItalic;
+            const underline = options?.underline ?? directUnderline;
+            console.log('[AgentClient] applyFormatting - options:', options, 'direct:', { bold, italic, underline });
+            if (bold) {
+              console.log('[AgentClient] Calling applyBold');
               editorCommands.applyBold?.();
             }
-            if (options?.italic) {
+            if (italic) {
+              console.log('[AgentClient] Calling applyItalic');
               editorCommands.applyItalic?.();
             }
-            if (options?.underline) {
+            if (underline) {
+              console.log('[AgentClient] Calling applyUnderline');
               editorCommands.applyUnderline?.();
             }
             break;
           case 'convertToBullets':
+            console.log('[AgentClient] Calling convertToBullets');
             editorCommands.convertToBullets?.();
+            break;
+          case 'convertToProperBullets':
+            const lines = action.args.lines as string[] | undefined;
+            console.log('[AgentClient] convertToProperBullets lines:', lines);
+            if (lines && editorCommands.convertMultipleToBullets) {
+              editorCommands.convertMultipleToBullets(lines);
+            } else if (lines) {
+              for (const line of lines) {
+                editorCommands.replaceText?.('', line);
+              }
+            }
             break;
           case 'replaceSelection':
             if (action.args.text && typeof action.args.text === 'string') {
+              console.log('[AgentClient] replaceSelection:', action.args.text);
               editorCommands.replaceText?.(editorState.selection, action.args.text);
             }
             break;
         }
       }
+    } else {
+      console.log('[AgentClient] No plannedActions or editorCommands');
     }
 
     return result;

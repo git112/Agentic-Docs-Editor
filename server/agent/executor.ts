@@ -14,6 +14,9 @@ export async function executeTools(plan: ToolCall[], editor: EditorAPI): Promise
         case 'convertToBullets':
           await editor.convertToBullets();
           break;
+        case 'convertToProperBullets':
+          await editor.convertToProperBullets(step.args.lines as string[]);
+          break;
         case 'setMargin':
           await editor.setMargin(step.args.values as { top?: number; right?: number; bottom?: number; left?: number });
           break;

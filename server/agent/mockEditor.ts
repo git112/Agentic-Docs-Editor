@@ -41,6 +41,10 @@ export const mockEditor: EditorAPI = {
     doc.convertToBullets();
   },
 
+  async convertToProperBullets(lines: string[]): Promise<void> {
+    console.log(`[MockEditor] convertToProperBullets(${JSON.stringify(lines)}) called`);
+  },
+
   async setMargin(values: { top?: number; right?: number; bottom?: number; left?: number }): Promise<void> {
     console.log(`[MockEditor] setMargin(${JSON.stringify(values)}) called`);
   },

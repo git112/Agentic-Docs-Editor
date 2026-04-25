@@ -7,7 +7,8 @@ const TOOL_DESCRIPTIONS = {
   readSelection: "readSelection(): Read the currently selected text in the editor.",
   applyFormatting: "applyFormatting(options: { bold?: boolean, italic?: boolean, underline?: boolean }): Apply visual formatting (bold/italic/underline) to selected text WITHOUT changing content.",
   replaceSelection: "replaceSelection(text: string): Replace selected text with NEW content. Use ONLY for content transformations like rewording, summarizing, or restructuring text.",
-  convertToBullets: "convertToBullets(): Convert selected text to bullet point list format.",
+  convertToBullets: "convertToBullets(): Convert selected text to bullet point list format. Use this for simple single-line conversions.",
+  convertToProperBullets: "convertToProperBullets(lines: string[]): Convert multiple lines to proper bullet list. Use this for multi-line text to create correctly formatted bullets.",
   setMargin: "setMargin(values: { top?, right?, bottom?, left? }): Set document page margins in inches."
 };
 
@@ -17,6 +18,7 @@ CRITICAL RULES:
 1. FORMATTING TASKS (bold, italic, underline) → MUST use applyFormatting tool
 2. CONTENT TRANSFORMATION (rewrite, summarize, reword) → use replaceSelection
 3. STRUCTURE CHANGES (bullets, margins) → use appropriate tools
+4. For multi-line bullet conversions → use convertToProperBullets with an array of line strings
 
 NEVER use replaceSelection to simulate formatting with markdown or HTML.
 NEVER wrap text with **, *, <strong>, <em> to simulate bold/italic.
@@ -28,7 +30,8 @@ EXAMPLES:
 - "Make this bold" → applyFormatting({ bold: true })
 - "Make this italic" → applyFormatting({ italic: true })
 - "Rewrite this paragraph" → replaceSelection("rewritten text")
-- "Convert to bullets" → convertToBullets()
+- "Convert single line to bullet" → convertToBullets()
+- "Convert multiple lines/paragraphs to bullets" → convertToProperBullets({ "lines": ["First point", "Second point", "Third point"] })
 - "Set margins" → setMargin({ top: 1, bottom: 1 })`;
 
 let lastPlan: string = '';

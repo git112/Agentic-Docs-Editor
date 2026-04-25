@@ -1,4 +1,4 @@
-export type ToolName = 'readSelection' | 'replaceSelection' | 'convertToBullets' | 'setMargin' | 'applyFormatting';
+export type ToolName = 'readSelection' | 'replaceSelection' | 'convertToBullets' | 'convertToProperBullets' | 'setMargin' | 'applyFormatting';
 
 export interface ToolCall {
   name: ToolName;

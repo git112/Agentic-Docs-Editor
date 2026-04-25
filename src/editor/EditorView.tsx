@@ -159,10 +159,24 @@ const EditorView: React.FC = () => {
     if (!editor || !bridge) return <div>Initializing Editor...</div>;
 
     const editorCommands = {
-        applyBold: () => editor.chain().focus().toggleBold().run(),
+        applyBold: () => {
+            console.log('[EditorCommands] applyBold called');
+            console.log('[EditorCommands] Selection:', editor.state.selection.from, '-', editor.state.selection.to);
+            editor.chain().focus().toggleBold().run();
+        },
         applyItalic: () => editor.chain().focus().toggleItalic().run(),
         applyUnderline: () => editor.chain().focus().toggleUnderline().run(),
         convertToBullets: () => editor.chain().focus().toggleBulletList().run(),
+        convertMultipleToBullets: (lines: string[]) => {
+            const bulletItems = lines.map(line => ({
+                type: 'listItem' as const,
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: line }] }]
+            }));
+            editor.chain().focus().clearContent().insertContentAt(0, {
+                type: 'bulletList',
+                content: bulletItems
+            }).run();
+        },
         replaceText: (_oldText: string, newText: string) => {
             const { from, to } = editor.state.selection;
             editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, newText).run();

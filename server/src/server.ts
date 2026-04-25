@@ -55,6 +55,11 @@ app.post('/api/agent/run', async (req, res) => {
       toolResults.push({ tool: 'convertToBullets', success: true });
     },
 
+    convertToProperBullets: async (lines: string[]): Promise<void> => {
+      logs.push(`[ConvertToProperBullets] lines=${JSON.stringify(lines)}`);
+      toolResults.push({ tool: 'convertToProperBullets', success: true, result: lines });
+    },
+
     setMargin: async (values: { top?: number; right?: number; bottom?: number; left?: number }): Promise<void> => {
       logs.push(`[SetMargin] ${JSON.stringify(values)}`);
       toolResults.push({ tool: 'setMargin', success: true, result: values });

@@ -5,6 +5,7 @@ interface AgentControlPanelProps {
   editorSelection: string;
   editorContent: string;
   editorCommands: EditorCommands;
+  onSelectionChange?: (selection: string) => void;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -18,11 +19,14 @@ const AgentControlPanel: React.FC<AgentControlPanelProps> = ({
   editorSelection,
   editorContent,
   editorCommands,
+  onSelectionChange,
 }) => {
   const [goal, setGoal] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [response, setResponse] = useState<AgentResponse | null>(null);
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [confirmedSelection, setConfirmedSelection] = useState('');
+  const [selectionLocked, setSelectionLocked] = useState(false);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -34,14 +38,24 @@ const AgentControlPanel: React.FC<AgentControlPanelProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!selectionLocked && editorSelection) {
+      setConfirmedSelection(editorSelection);
+    }
+  }, [editorSelection, selectionLocked]);
+
   const handleRunAgent = useCallback(async () => {
     if (!goal.trim()) return;
+    if (!confirmedSelection.trim() && !goal.toLowerCase().includes('new')) {
+      alert('Please select some text in the editor first, or click "Confirm Selection" to lock your selection.');
+      return;
+    }
 
     setIsRunning(true);
     setResponse(null);
 
     const editorState: EditorState = {
-      selection: editorSelection,
+      selection: confirmedSelection || editorSelection,
       content: editorContent,
     };
 
@@ -56,10 +70,21 @@ const AgentControlPanel: React.FC<AgentControlPanelProps> = ({
     } finally {
       setIsRunning(false);
     }
-  }, [goal, editorSelection, editorContent, editorCommands]);
+  }, [goal, editorSelection, editorContent, editorCommands, confirmedSelection]);
 
   const handleQuickPrompt = (prompt: string) => {
     setGoal(prompt);
+  };
+
+  const handleConfirmSelection = () => {
+    setConfirmedSelection(editorSelection);
+    setSelectionLocked(true);
+    onSelectionChange?.(editorSelection);
+  };
+
+  const handleUnlockSelection = () => {
+    setSelectionLocked(false);
+    setConfirmedSelection('');
   };
 
   return (
@@ -69,6 +94,37 @@ const AgentControlPanel: React.FC<AgentControlPanelProps> = ({
         <span style={statusBadge(serverStatus)}>
           {serverStatus === 'checking' ? '...' : serverStatus === 'online' ? '●' : '○'}
         </span>
+      </div>
+
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <label style={labelStyle}>Selected Text:</label>
+          {!selectionLocked && (
+            <button
+              onClick={handleConfirmSelection}
+              disabled={!editorSelection}
+              style={confirmButtonStyle(!editorSelection)}
+            >
+              🔒 Confirm Selection
+            </button>
+          )}
+          {selectionLocked && (
+            <button
+              onClick={handleUnlockSelection}
+              style={unlockButtonStyle}
+            >
+              🔓 Unlock Selection
+            </button>
+          )}
+        </div>
+        <div style={selectionBoxStyle(selectionLocked)}>
+          {selectionLocked ? (
+            <span style={{ color: '#10b981', fontWeight: 500 }}>✓ Locked: </span>
+          ) : (
+            <span style={{ color: '#64748b', fontSize: '11px' }}>Live: </span>
+          )}
+          {confirmedSelection || editorSelection || '(No text selected)'}
+        </div>
       </div>
 
       <div style={inputSectionStyle}>
@@ -209,6 +265,40 @@ const runButtonStyle = (isRunning: boolean): React.CSSProperties => ({
   fontWeight: 500,
   cursor: isRunning ? 'not-allowed' : 'pointer',
   transition: 'background-color 0.2s',
+});
+
+const confirmButtonStyle = (disabled: boolean): React.CSSProperties => ({
+  padding: '4px 10px',
+  borderRadius: '4px',
+  border: '1px solid #10b981',
+  backgroundColor: disabled ? '#f1f5f9' : '#ecfdf5',
+  color: disabled ? '#94a3b8' : '#10b981',
+  fontSize: '11px',
+  fontWeight: 500,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+});
+
+const unlockButtonStyle: React.CSSProperties = {
+  padding: '4px 10px',
+  borderRadius: '4px',
+  border: '1px solid #64748b',
+  backgroundColor: '#f1f5f9',
+  color: '#64748b',
+  fontSize: '11px',
+  fontWeight: 500,
+  cursor: 'pointer',
+};
+
+const selectionBoxStyle = (locked: boolean): React.CSSProperties => ({
+  padding: '8px 12px',
+  borderRadius: '6px',
+  border: `2px solid ${locked ? '#10b981' : '#e2e8f0'}`,
+  backgroundColor: locked ? '#ecfdf5' : '#ffffff',
+  fontSize: '12px',
+  minHeight: '40px',
+  maxHeight: '80px',
+  overflow: 'auto',
+  wordBreak: 'break-word',
 });
 
 const suggestionsStyle: React.CSSProperties = {

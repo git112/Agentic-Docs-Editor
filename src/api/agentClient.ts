@@ -12,7 +12,7 @@ export interface ToolResult {
 }
 
 export interface PlannedAction {
-  name: 'readSelection' | 'replaceSelection' | 'convertToBullets' | 'convertToProperBullets' | 'setMargin' | 'applyFormatting';
+  name: 'readSelection' | 'replaceSelection' | 'replaceSelectionWithContent' | 'convertToBullets' | 'convertToBulletsFromLines' | 'convertToNumberedList' | 'applyFormatting' | 'applyHeading' | 'setAlignment' | 'insertTable' | 'setMargin' | 'insertStructuredContent';
   args: Record<string, unknown>;
 }
 
@@ -31,8 +31,16 @@ export interface EditorCommands {
   applyItalic?: () => void;
   applyUnderline?: () => void;
   convertToBullets?: () => void;
+  convertToNumberedList?: () => void;
   convertMultipleToBullets?: (lines: string[]) => void;
+  convertToBulletsFromLines?: (lines: string[]) => void;
+  applyHeading?: (level: 1 | 2 | 3 | 4 | 5 | 6) => void;
+  setAlignment?: (align: 'left' | 'center' | 'right' | 'justify') => void;
+  insertTable?: (rows: number, cols: number) => void;
   replaceText?: (oldText: string, newText: string) => void;
+  convertToBulletsWithLines?: (lines: string[]) => void;
+  boldFirstWordOfBullets?: () => void;
+  insertStructuredContent?: (content: { type: string; content?: string[]; attrs?: Record<string, unknown> }) => void;
 }
 
 export async function runAgent(
@@ -59,60 +67,87 @@ export async function runAgent(
 
     const result = await response.json();
 
-    console.log('[AgentClient] Response:', JSON.stringify(result, null, 2));
-
     if (result.plannedActions && editorCommands) {
-      console.log('[AgentClient] Executing', result.plannedActions.length, 'planned actions');
       for (const action of result.plannedActions) {
-        console.log('[AgentClient] Action:', JSON.stringify(action));
+        console.log('[AgentClient] Executing action:', action.name, action.args);
+        
         switch (action.name) {
-          case 'applyFormatting':
-            const options = action.args.options as { bold?: boolean; italic?: boolean; underline?: boolean } | undefined;
-            const directBold = action.args.bold as boolean | undefined;
-            const directItalic = action.args.italic as boolean | undefined;
-            const directUnderline = action.args.underline as boolean | undefined;
-            const bold = options?.bold ?? directBold;
-            const italic = options?.italic ?? directItalic;
-            const underline = options?.underline ?? directUnderline;
-            console.log('[AgentClient] applyFormatting - options:', options, 'direct:', { bold, italic, underline });
-            if (bold) {
-              console.log('[AgentClient] Calling applyBold');
-              editorCommands.applyBold?.();
+          case 'applyFormatting': {
+            const options = action.args as { bold?: boolean; italic?: boolean; underline?: boolean; scope?: string } | undefined;
+            if (options?.bold) editorCommands.applyBold?.();
+            if (options?.italic) editorCommands.applyItalic?.();
+            if (options?.underline) editorCommands.applyUnderline?.();
+            if (options?.scope === 'first_word') {
+              editorCommands.boldFirstWordOfBullets?.();
             }
-            if (italic) {
-              console.log('[AgentClient] Calling applyItalic');
-              editorCommands.applyItalic?.();
-            }
-            if (underline) {
-              console.log('[AgentClient] Calling applyUnderline');
-              editorCommands.applyUnderline?.();
+            if (options?.scope === 'all_lines') {
+              console.log('[AgentClient] applyFormatting with scope: all_lines');
             }
             break;
-          case 'convertToBullets':
-            console.log('[AgentClient] Calling convertToBullets');
-            editorCommands.convertToBullets?.();
+          }
+          case 'applyHeading':
+            const level = action.args.level as number;
+            if (level && editorCommands.applyHeading) {
+              const validLevel = Math.min(Math.max(1, level), 6) as 1 | 2 | 3 | 4 | 5 | 6;
+              editorCommands.applyHeading(validLevel);
+            }
             break;
-          case 'convertToProperBullets':
-            const lines = action.args.lines as string[] | undefined;
-            console.log('[AgentClient] convertToProperBullets lines:', lines);
-            if (lines && editorCommands.convertMultipleToBullets) {
-              editorCommands.convertMultipleToBullets(lines);
-            } else if (lines) {
-              for (const line of lines) {
-                editorCommands.replaceText?.('', line);
-              }
+          case 'setAlignment':
+            const align = action.args.align as 'left' | 'center' | 'right' | 'justify';
+            if (align && editorCommands.setAlignment) {
+              editorCommands.setAlignment(align);
             }
             break;
           case 'replaceSelection':
-            if (action.args.text && typeof action.args.text === 'string') {
-              console.log('[AgentClient] replaceSelection:', action.args.text);
-              editorCommands.replaceText?.(editorState.selection, action.args.text);
+            const newText = action.args.newText as string | undefined;
+            if (newText) {
+              if (newText.includes('\n') && editorCommands.convertToBulletsWithLines) {
+                const lines = newText.split('\n').filter(l => l.trim());
+                editorCommands.convertToBulletsWithLines(lines);
+              } else {
+                editorCommands.replaceText?.(editorState.selection, newText);
+              }
             }
             break;
+          case 'replaceSelectionWithContent': {
+            const content = action.args.content as { type: string; content?: string[] } | undefined;
+            if (content && editorCommands.insertStructuredContent) {
+              console.log('[AgentClient] replaceSelectionWithContent:', content);
+              editorCommands.insertStructuredContent(content);
+            }
+            break;
+          }
+          case 'convertToBullets':
+            editorCommands.convertToBullets?.();
+            break;
+          case 'convertToBulletsFromLines': {
+            const lines = action.args.lines as string[] | undefined;
+            if (lines && editorCommands.convertToBulletsFromLines) {
+              console.log('[AgentClient] convertToBulletsFromLines:', lines);
+              editorCommands.convertToBulletsFromLines(lines);
+            }
+            break;
+          }
+          case 'convertToNumberedList':
+            editorCommands.convertToNumberedList?.();
+            break;
+          case 'insertTable':
+            const rows = action.args.rows as number ?? 3;
+            const cols = action.args.cols as number ?? 3;
+            if (editorCommands.insertTable) {
+              editorCommands.insertTable(rows, cols);
+            }
+            break;
+          case 'insertStructuredContent': {
+            const content = action.args.content as { type: string; content?: string[] } | undefined;
+            if (content && editorCommands.insertStructuredContent) {
+              console.log('[AgentClient] insertStructuredContent:', content);
+              editorCommands.insertStructuredContent(content);
+            }
+            break;
+          }
         }
       }
-    } else {
-      console.log('[AgentClient] No plannedActions or editorCommands');
     }
 
     return result;

@@ -45,9 +45,14 @@ app.post('/api/agent/run', async (req, res) => {
       return text;
     },
 
-    replaceSelection: async (text: string): Promise<void> => {
-      logs.push(`[ReplaceSelection] text="${text}"`);
-      toolResults.push({ tool: 'replaceSelection', success: true, result: text });
+    replaceSelection: async (newText: string): Promise<void> => {
+      logs.push(`[ReplaceSelection] newText="${newText}"`);
+      toolResults.push({ tool: 'replaceSelection', success: true, result: newText });
+    },
+
+    replaceSelectionWithContent: async (content: { type: string; content?: string[] }): Promise<void> => {
+      logs.push(`[ReplaceSelectionWithContent] ${JSON.stringify(content)}`);
+      toolResults.push({ tool: 'replaceSelectionWithContent', success: true, result: content });
     },
 
     convertToBullets: async (): Promise<void> => {
@@ -55,9 +60,14 @@ app.post('/api/agent/run', async (req, res) => {
       toolResults.push({ tool: 'convertToBullets', success: true });
     },
 
-    convertToProperBullets: async (lines: string[]): Promise<void> => {
-      logs.push(`[ConvertToProperBullets] lines=${JSON.stringify(lines)}`);
-      toolResults.push({ tool: 'convertToProperBullets', success: true, result: lines });
+    convertToNumberedList: async (): Promise<void> => {
+      logs.push('[ConvertToNumberedList]');
+      toolResults.push({ tool: 'convertToNumberedList', success: true });
+    },
+
+    convertToBulletsFromLines: async (lines: string[]): Promise<void> => {
+      logs.push(`[ConvertToBulletsFromLines] ${JSON.stringify(lines)}`);
+      toolResults.push({ tool: 'convertToBulletsFromLines', success: true, result: lines });
     },
 
     setMargin: async (values: { top?: number; right?: number; bottom?: number; left?: number }): Promise<void> => {
@@ -65,9 +75,29 @@ app.post('/api/agent/run', async (req, res) => {
       toolResults.push({ tool: 'setMargin', success: true, result: values });
     },
 
-    applyFormatting: async (options: { bold?: boolean; italic?: boolean; underline?: boolean }): Promise<void> => {
+    applyFormatting: async (options: { bold?: boolean; italic?: boolean; underline?: boolean; scope?: string }): Promise<void> => {
       logs.push(`[ApplyFormatting] ${JSON.stringify(options)}`);
       toolResults.push({ tool: 'applyFormatting', success: true, result: options });
+    },
+
+    applyHeading: async (level: 1 | 2 | 3 | 4 | 5 | 6): Promise<void> => {
+      logs.push(`[ApplyHeading] level=${level}`);
+      toolResults.push({ tool: 'applyHeading', success: true, result: { level } });
+    },
+
+    setAlignment: async (align: 'left' | 'center' | 'right' | 'justify'): Promise<void> => {
+      logs.push(`[SetAlignment] ${align}`);
+      toolResults.push({ tool: 'setAlignment', success: true, result: { align } });
+    },
+
+    insertTable: async (rows: number, cols: number): Promise<void> => {
+      logs.push(`[InsertTable] ${rows}x${cols}`);
+      toolResults.push({ tool: 'insertTable', success: true, result: { rows, cols } });
+    },
+
+    insertStructuredContent: async (content: { type: string; content?: string[] }): Promise<void> => {
+      logs.push(`[InsertStructuredContent] ${JSON.stringify(content)}`);
+      toolResults.push({ tool: 'insertStructuredContent', success: true, result: content });
     }
   };
 

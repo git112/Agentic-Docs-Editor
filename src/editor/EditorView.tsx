@@ -13,6 +13,7 @@ import { EditorBridge } from '../core/editorBridge';
 import DebugPanel from '../debug/DebugPanel';
 import AgentControlPanel from '../agent/AgentControlPanel';
 import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
 
 /**
  * Custom Style mapping helper
@@ -105,6 +106,7 @@ const EditorView: React.FC = () => {
             CustomHeading,
             CustomImage,
             Underline,
+            TextAlign.configure({ types: ['heading', 'paragraph'] }),
             Table.configure({ resizable: true }),
             TableRow,
             TableCell,
@@ -167,19 +169,184 @@ const EditorView: React.FC = () => {
         applyItalic: () => editor.chain().focus().toggleItalic().run(),
         applyUnderline: () => editor.chain().focus().toggleUnderline().run(),
         convertToBullets: () => editor.chain().focus().toggleBulletList().run(),
-        convertMultipleToBullets: (lines: string[]) => {
-            const bulletItems = lines.map(line => ({
-                type: 'listItem' as const,
-                content: [{ type: 'paragraph', content: [{ type: 'text', text: line }] }]
-            }));
-            editor.chain().focus().clearContent().insertContentAt(0, {
-                type: 'bulletList',
-                content: bulletItems
+        convertToNumberedList: () => editor.chain().focus().toggleOrderedList().run(),
+        convertMultipleToBullets: (_lines: string[]) => {
+            const { state } = editor;
+            const { selection } = state;
+            const { from, to } = selection;
+            
+            if (from === to) {
+              return;
+            }
+
+            const selectedText = state.doc.textBetween(from, to, ' ');
+            const textLines = selectedText.split('\n').filter(l => l.trim());
+            
+            const bulletItems = textLines.map(line => {
+              return {
+                type: 'listItem',
+                content: [{
+                  type: 'paragraph',
+                  content: [{
+                    type: 'text',
+                    text: line
+                  }]
+                }]
+              };
+            });
+
+            console.log('[EditorCommands] convertMultipleToBullets - AST structure:', JSON.stringify({ type: 'bulletList', content: bulletItems }, null, 2));
+            editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, {
+              type: 'bulletList',
+              content: bulletItems
             }).run();
+        },
+        convertToBulletsFromLines: (lines: string[]) => {
+            const { state } = editor;
+            const { selection } = state;
+            const { from, to } = selection;
+
+            if (lines.length === 0 || !lines[0]) return;
+
+            const bulletItems = lines.filter(l => l.trim()).map(line => ({
+                type: 'listItem',
+                content: [{
+                    type: 'paragraph',
+                    content: [{ type: 'text', text: line.trim() }]
+                }]
+            }));
+
+            console.log('[EditorCommands] convertToBulletsFromLines - AST:', JSON.stringify({ type: 'bulletList', content: bulletItems }, null, 2));
+
+            if (from !== to) {
+                editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, {
+                    type: 'bulletList',
+                    content: bulletItems
+                }).run();
+            } else {
+                editor.chain().focus().insertContent({
+                    type: 'bulletList',
+                    content: bulletItems
+                }).run();
+            }
+        },
+        applyHeading: (level: 1 | 2 | 3 | 4 | 5 | 6) => {
+            editor.chain().focus().toggleHeading({ level }).run();
+        },
+        setAlignment: (align: 'left' | 'center' | 'right' | 'justify') => {
+            editor.chain().focus().setTextAlign(align).run();
+        },
+        insertTable: (rows: number, cols: number) => {
+            editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
         },
         replaceText: (_oldText: string, newText: string) => {
             const { from, to } = editor.state.selection;
             editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, newText).run();
+        },
+        convertToBulletsWithLines: (lines: string[]) => {
+            const { state } = editor;
+            const { selection } = state;
+            const { from, to } = selection;
+
+            if (lines.length === 0) return;
+
+            const bulletItems = lines.map(line => {
+              return {
+                type: 'listItem',
+                content: [{
+                  type: 'paragraph',
+                  content: [{
+                    type: 'text',
+                    text: line
+                  }]
+                }]
+              };
+            });
+
+            if (from !== to) {
+              editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, {
+                type: 'bulletList',
+                content: bulletItems
+              }).run();
+            } else {
+              editor.chain().focus().insertContent({
+                type: 'bulletList',
+                content: bulletItems
+              }).run();
+            }
+        },
+        boldFirstWordOfBullets: () => {
+            const { state } = editor;
+            const doc = state.doc;
+            
+            doc.descendants((node, pos) => {
+              if (node.type.name === 'listItem') {
+                const firstParagraph = node.firstChild;
+                if (firstParagraph && firstParagraph.isTextblock) {
+                  const text = firstParagraph.textContent;
+                  const firstSpace = text.indexOf(' ');
+                  
+                  if (firstSpace > 0) {
+                    const absoluteStart = pos + 1;
+                    console.log(`[EditorCommands] boldFirstWordOfBullets - applying bold to range: ${absoluteStart} to ${absoluteStart + firstSpace}`);
+                    editor.chain().focus()
+                      .setTextSelection({ from: absoluteStart, to: absoluteStart + firstSpace })
+                      .toggleBold()
+                      .run();
+                  }
+                }
+              }
+              return true;
+            });
+        },
+        insertStructuredContent: (content: { type: string; content?: string[]; attrs?: Record<string, unknown> }) => {
+            const { state } = editor;
+            const { selection } = state;
+            const { from, to } = selection;
+
+            console.log('[EditorCommands] insertStructuredContent - AST:', JSON.stringify(content, null, 2));
+
+            if (content.type === 'bulletList' && content.content) {
+                const bulletItems = content.content.filter(l => l.trim()).map(line => ({
+                    type: 'listItem',
+                    content: [{
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: line.trim() }]
+                    }]
+                }));
+
+                if (from !== to) {
+                    editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, {
+                        type: 'bulletList',
+                        content: bulletItems
+                    }).run();
+                } else {
+                    editor.chain().focus().insertContent({
+                        type: 'bulletList',
+                        content: bulletItems
+                    }).run();
+                }
+            } else if (content.type === 'orderedList' && content.content) {
+                const listItems = content.content.filter(l => l.trim()).map(line => ({
+                    type: 'listItem',
+                    content: [{
+                        type: 'paragraph',
+                        content: [{ type: 'text', text: line.trim() }]
+                    }]
+                }));
+
+                if (from !== to) {
+                    editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, {
+                        type: 'orderedList',
+                        content: listItems
+                    }).run();
+                } else {
+                    editor.chain().focus().insertContent({
+                        type: 'orderedList',
+                        content: listItems
+                    }).run();
+                }
+            }
         }
     };
 

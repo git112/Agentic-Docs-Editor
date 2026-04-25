@@ -32,7 +32,9 @@ export class DocumentModel {
         page: {
           margin: {
             top: '1in',
-            bottom: '1in'
+            right: '1in',
+            bottom: '1in',
+            left: '1in'
           }
         }
       };
@@ -59,7 +61,7 @@ export class DocumentModel {
     return block;
   }
 
-  createHeading(text: string, level: number): HeadingBlock {
+  createHeading(text: string, level: 1 | 2 | 3 | 4 | 5 | 6): HeadingBlock {
     const block: HeadingBlock = {
       id: this.generateId(),
       type: 'heading',

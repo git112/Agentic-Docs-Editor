@@ -51,7 +51,7 @@ export class EditorBridge {
       this.isSyncing = true;
       
       const json = astToTipTap(this.model);
-      this.editor.commands.setContent(json, false);
+      this.editor.commands.setContent(json, undefined);
       
       // Release guard in next tick to prevent race conditions with TipTap internal updates
       setTimeout(() => {

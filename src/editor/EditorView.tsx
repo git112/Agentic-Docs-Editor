@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Paragraph from '@tiptap/extension-paragraph';
@@ -11,6 +11,7 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { DocumentModel } from '../core/documentModel';
 import { EditorBridge } from '../core/editorBridge';
 import DebugPanel from '../debug/DebugPanel';
+import AgentControlPanel from '../agent/AgentControlPanel';
 import Underline from '@tiptap/extension-underline';
 
 /**
@@ -72,6 +73,9 @@ const CustomImage = Image.extend({
 });
 
 const EditorView: React.FC = () => {
+    const [editorSelection, setEditorSelection] = useState('');
+    const [editorContent, setEditorContent] = useState('');
+
     const model = useMemo(() => {
         return new DocumentModel({
             blocks: [
@@ -134,9 +138,36 @@ const EditorView: React.FC = () => {
 
     useEffect(() => {
         if (bridge) bridge.init();
-    }, [bridge]);
+
+        if (editor) {
+            const updateSelection = () => {
+                const { from, to } = editor.state.selection;
+                const selectedText = editor.state.doc.textBetween(from, to, ' ');
+                setEditorSelection(selectedText);
+                setEditorContent(editor.getText());
+            };
+
+            editor.on('selectionUpdate', updateSelection);
+            updateSelection();
+
+            return () => {
+                editor.off('selectionUpdate', updateSelection);
+            };
+        }
+    }, [bridge, editor]);
 
     if (!editor || !bridge) return <div>Initializing Editor...</div>;
+
+    const editorCommands = {
+        applyBold: () => editor.chain().focus().toggleBold().run(),
+        applyItalic: () => editor.chain().focus().toggleItalic().run(),
+        applyUnderline: () => editor.chain().focus().toggleUnderline().run(),
+        convertToBullets: () => editor.chain().focus().toggleBulletList().run(),
+        replaceText: (_oldText: string, newText: string) => {
+            const { from, to } = editor.state.selection;
+            editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, newText).run();
+        }
+    };
 
     return (
         <div className="layout-container" style={{ display: 'flex', height: '100%', gap: '20px', padding: '20px', boxSizing: 'border-box' }}>
@@ -162,6 +193,13 @@ const EditorView: React.FC = () => {
                     <EditorContent editor={editor} />
                     <div style={{ height: '50px' }} />
                 </div>
+
+                {/* Agent Control Panel */}
+                <AgentControlPanel 
+                    editorSelection={editorSelection}
+                    editorContent={editorContent}
+                    editorCommands={editorCommands}
+                />
             </div>
 
             <div className="debug-sidebar" style={{ width: '450px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

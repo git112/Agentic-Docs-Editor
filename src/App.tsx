@@ -1,4 +1,3 @@
-import React from 'react';
 import EditorView from './editor/EditorView'
 
 function App() {
